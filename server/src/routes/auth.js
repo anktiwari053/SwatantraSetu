@@ -14,13 +14,18 @@ const router = Router();
 const OTP_EXPIRY_MS = 5 * 60 * 1000;
 const RESEND_COOLDOWN_MS = 60 * 1000;
 
-const mailer = process.env.SMTP_HOST
-  ? nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    })
+const mailer = process.env.SMTP_USER && process.env.SMTP_PASS
+  ? process.env.SMTP_HOST
+    ? nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      })
+    : nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      })
   : null;
 
 function publicUser(user) {
@@ -56,11 +61,11 @@ function issueOtp(user) {
 }
 
 async function sendOtpEmail(user, otp) {
-  if (!mailer || !process.env.SMTP_FROM) {
+  if (!mailer) {
     throw new Error('Email service is not configured');
   }
   await mailer.sendMail({
-    from: process.env.SMTP_FROM,
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: user.email,
     subject: 'Verify your Co-opConnect email',
     text: `Your Co-opConnect verification code is ${otp}. It expires in 5 minutes.`,
